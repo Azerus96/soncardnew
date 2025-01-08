@@ -54,7 +54,7 @@
         .menu-toggle {
             position: fixed;
             left: 10px;
-            top: 20px; /* Перемещено выше */
+            top: 20px;
             z-index: 1003;
             background: #4CAF50;
             border: none;
@@ -80,7 +80,6 @@
         .menu-panel.open {
             left: 0;
         }
-
         .setting-group {
             margin-bottom: 20px;
         }
@@ -106,6 +105,7 @@
         .checkbox-container input[type="checkbox"] {
             width: auto;
         }
+
         .table {
             display: grid;
             grid-template-rows: auto auto auto;
@@ -165,7 +165,6 @@
             user-select: none;
             -webkit-user-select: none;
         }
-
         .card[data-suit="♥"], .card[data-suit="♦"] {
             color: #e44145;
         }
@@ -190,7 +189,7 @@
             display: flex;
             justify-content: center;
             gap: 10px;
-            flex-wrap: wrap;
+            flex-wrap: nowrap;
             align-items: center;
         }
 
@@ -202,8 +201,13 @@
             transition: all 0.3s ease;
             user-select: none;
             -webkit-user-select: none;
-            font-size: 16px;
+            height: 45px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-sizing: border-box;
         }
+
         .selector-item:hover, .action-button:hover {
             border-color: #4CAF50;
             transform: translateY(-2px);
@@ -220,13 +224,9 @@
             background-color: #4CAF50;
             color: white;
             border: none;
-            padding: 12px 20px;
+            padding: 0 20px;
             font-size: 16px;
-            width: calc(70px + 2vw);
-            height: calc(45px + 1vw);
-            display: flex;
-            align-items: center;
-            justify-content: center;
+            height: 45px;
         }
 
         .combination-area {
@@ -249,7 +249,6 @@
             cursor: pointer;
             transition: all 0.3s ease;
         }
-
         .combination-slot:hover {
             border-color: #4CAF50;
         }
@@ -365,7 +364,6 @@
 
     <div class="card-controls">
         <div class="selector-row">
-            <!-- Ranks -->
             <div class="selector-item" data-rank="A">A</div>
             <div class="selector-item" data-rank="K">K</div>
             <div class="selector-item" data-rank="Q">Q</div>
@@ -381,18 +379,173 @@
             <div class="selector-item" data-rank="2">2</div>
         </div>
         <div class="selector-row">
-            <!-- Action buttons and suits -->
-            <button class="action-button" onclick="distributeCards()">+</button>
+            <button class="selector-item action-button" onclick="distributeCards()">+</button>
             <div class="selector-item" data-suit="♥">♥</div>
             <div class="selector-item" data-suit="♦">♦</div>
             <div class="selector-item" data-suit="♣">♣</div>
             <div class="selector-item" data-suit="♠">♠</div>
-            <button class="action-button" onclick="removeSelectedCards()">-</button>
+            <button class="selector-item action-button" onclick="removeSelectedCards()">-</button>
         </div>
     </div>
 
     <div class="combination-area"></div>
-    function handleCardSelection(element) {
+    <script>
+        let menuOpen = false;
+        let selectedRank = null;
+        let selectedSuit = null;
+        let usedCards = new Set();
+        let unavailableCards = new Set();
+        let isFullscreen = false;
+
+        document.addEventListener('fullscreenchange', () => {
+            isFullscreen = !!document.fullscreenElement;
+            localStorage.setItem('isFullscreen', isFullscreen);
+        });
+
+        function toggleMenu() {
+            const menu = document.querySelector('.menu-panel');
+            menuOpen = !menuOpen;
+            menu.style.left = menuOpen ? '0' : '-300px';
+        }
+
+        document.addEventListener('click', (e) => {
+            const menu = document.querySelector('.menu-panel');
+            const menuToggle = document.querySelector('.menu-toggle');
+            if (menuOpen && !menu.contains(e.target) && !menuToggle.contains(e.target)) {
+                menuOpen = false;
+                menu.style.left = '-300px';
+            }
+        });
+
+        function toggleFullScreen() {
+            if (!document.fullscreenElement) {
+                document.documentElement.requestFullscreen().catch(err => {
+                    console.log(`Error attempting to enable full-screen mode: ${err.message}`);
+                });
+            } else {
+                if (document.exitFullscreen) {
+                    document.exitFullscreen();
+                }
+            }
+        }
+
+        function goToGame() {
+            const fullscreenState = isFullscreen;
+            localStorage.setItem('isFullscreen', fullscreenState);
+            window.location.href = '/';
+        }
+
+        function createCard(cardData) {
+            const card = document.createElement('div');
+            card.className = 'card';
+            card.dataset.rank = cardData.rank;
+            card.dataset.suit = cardData.suit;
+            card.textContent = `${cardData.rank}${cardData.suit}`;
+            
+            if (cardData.suit === '♥' || cardData.suit === '♦') {
+                card.style.color = '#e44145';
+            }
+
+            // Двойной клик для удаления
+            card.addEventListener('dblclick', () => {
+                const cardKey = `${cardData.rank}${cardData.suit}`;
+                usedCards.delete(cardKey);
+                card.remove();
+            });
+
+            // Одиночный клик для замены
+            card.addEventListener('click', () => {
+                if (selectedRank && selectedSuit) {
+                    const newCardKey = `${selectedRank}${selectedSuit}`;
+                    if (!usedCards.has(newCardKey) && !unavailableCards.has(newCardKey)) {
+                        const oldCardKey = `${card.dataset.rank}${card.dataset.suit}`;
+                        usedCards.delete(oldCardKey);
+                        
+                        card.dataset.rank = selectedRank;
+                        card.dataset.suit = selectedSuit;
+                        card.textContent = newCardKey;
+                        card.style.color = (selectedSuit === '♥' || selectedSuit === '♦') ? '#e44145' : '#2d2d2d';
+                        
+                        usedCards.add(newCardKey);
+                        selectedRank = null;
+                        selectedSuit = null;
+                        document.querySelectorAll('.selector-item').forEach(el => 
+                            el.classList.remove('selected')
+                        );
+                    }
+                }
+            });
+
+            // Перетаскивание для удаления
+            card.draggable = true;
+            card.addEventListener('dragstart', (e) => {
+                e.dataTransfer.setData('text/plain', '');
+                card.style.opacity = '0.5';
+            });
+
+            card.addEventListener('dragend', (e) => {
+                card.style.opacity = '1';
+                if (e.dataTransfer.dropEffect === 'none') {
+                    const cardKey = `${cardData.rank}${cardData.suit}`;
+                    usedCards.delete(cardKey);
+                    card.remove();
+                }
+            });
+            
+            return card;
+        }
+        function setupTable() {
+            const topRow = document.getElementById('top-row');
+            const middleRow = document.getElementById('middle-row');
+            const bottomRow = document.getElementById('bottom-row');
+
+            topRow.innerHTML = '';
+            middleRow.innerHTML = '';
+            bottomRow.innerHTML = '';
+
+            for (let i = 0; i < 3; i++) {
+                const slot = document.createElement('div');
+                slot.className = 'card-slot';
+                topRow.appendChild(slot);
+            }
+            for (let i = 0; i < 5; i++) {
+                const slot = document.createElement('div');
+                slot.className = 'card-slot';
+                middleRow.appendChild(slot);
+            }
+            for (let i = 0; i < 5; i++) {
+                const slot = document.createElement('div');
+                slot.className = 'card-slot';
+                bottomRow.appendChild(slot);
+            }
+
+            // Добавляем обработчики для слотов
+            document.querySelectorAll('.card-slot').forEach(slot => {
+                slot.addEventListener('click', () => {
+                    if (selectedRank && selectedSuit) {
+                        const cardKey = `${selectedRank}${selectedSuit}`;
+                        if (!usedCards.has(cardKey) && !unavailableCards.has(cardKey)) {
+                            const existingCard = slot.querySelector('.card');
+                            if (existingCard) {
+                                const oldCardKey = `${existingCard.dataset.rank}${existingCard.dataset.suit}`;
+                                usedCards.delete(oldCardKey);
+                                existingCard.remove();
+                            }
+                            const card = createCard({rank: selectedRank, suit: selectedSuit});
+                            slot.appendChild(card);
+                            usedCards.add(cardKey);
+                            selectedRank = null;
+                            selectedSuit = null;
+                            document.querySelectorAll('.selector-item').forEach(el => 
+                                el.classList.remove('selected')
+                            );
+                        }
+                    }
+                });
+            });
+        }
+
+        function handleCardSelection(element) {
             if (element.dataset.rank) {
                 if (selectedRank === element.dataset.rank) {
                     selectedRank = null;
@@ -456,17 +609,14 @@
                 return;
             }
 
-            // Получаем все свободные слоты
             const slots = [
                 ...document.querySelectorAll('#top-row .card-slot'),
                 ...document.querySelectorAll('#middle-row .card-slot'),
                 ...document.querySelectorAll('#bottom-row .card-slot')
             ].filter(slot => !slot.hasChildNodes());
 
-            // Случайно перемешиваем карты
             const shuffledCards = [...cards].sort(() => Math.random() - 0.5);
 
-            // Распределяем карты по слотам
             shuffledCards.forEach((card, index) => {
                 if (index < slots.length) {
                     const cardElement = createCard(card);
@@ -476,8 +626,9 @@
                 }
             });
 
-            // Очищаем комбинационную область
-            removeSelectedCards();
+            document.querySelector('.combination-area').querySelectorAll('.card').forEach(card => {
+                card.remove();
+            });
         }
 
         function resetTraining() {
@@ -503,23 +654,21 @@
             }
         }
 
-        // Инициализация при загрузке
         document.addEventListener('DOMContentLoaded', () => {
             setupTable();
             setupCombinationArea();
 
-            // Восстанавливаем полноэкранный режим
             const savedFullscreen = localStorage.getItem('isFullscreen') === 'true';
             if (savedFullscreen) {
-                document.documentElement.requestFullscreen();
+                document.documentElement.requestFullscreen().catch(err => {
+                    console.log(`Error attempting to enable full-screen mode: ${err.message}`);
+                });
             }
 
-            // Обработчики для селекторов карт
             document.querySelectorAll('.selector-item').forEach(item => {
                 item.addEventListener('click', () => handleCardSelection(item));
             });
 
-            // Обработчик изменения времени ИИ
             const aiTimeSlider = document.getElementById('aiTime');
             const aiTimeValue = document.getElementById('aiTimeValue');
             aiTimeSlider.addEventListener('input', (e) => {
