@@ -39,7 +39,6 @@
             transition: all 0.3s ease;
             box-shadow: 0 2px 4px rgba(0,0,0,0.2);
         }
-
         button:hover {
             background-color: #45a049;
             transform: translateY(-1px);
@@ -75,10 +74,6 @@
             transition: left 0.3s ease;
             padding: 20px;
             box-shadow: 2px 0 5px rgba(0,0,0,0.1);
-        }
-
-        .menu-panel h3 {
-            margin-left: 40px;
         }
 
         .menu-panel.open {
@@ -124,7 +119,6 @@
             box-sizing: border-box;
             overflow: visible;
         }
-
         .row {
             display: flex;
             justify-content: center;
@@ -168,8 +162,8 @@
             cursor: pointer;
             user-select: none;
             -webkit-user-select: none;
+            z-index: 2;
         }
-
         .card[data-suit="♥"], .card[data-suit="♦"] {
             color: #e44145;
         }
@@ -212,9 +206,7 @@
             align-items: center;
             justify-content: center;
             box-sizing: border-box;
-            min-width: 30px;
         }
-
         .selector-item:hover, .action-button:hover {
             border-color: #4CAF50;
             transform: translateY(-2px);
@@ -255,8 +247,9 @@
             align-items: center;
             cursor: pointer;
             transition: all 0.3s ease;
+            position: relative;
+            z-index: 1;
         }
-
         .combination-slot:hover {
             border-color: #4CAF50;
         }
@@ -277,6 +270,10 @@
             z-index: 1002;
             padding: 8px;
             box-shadow: none;
+        }
+
+        body.dragging {
+            overflow: hidden;
         }
 
         @media (max-width: 768px) {
@@ -300,7 +297,6 @@
                 height: calc(65px + 2vw);
                 font-size: calc(14px + 1vw);
             }
-
             .card-controls {
                 padding: 10px;
             }
@@ -327,7 +323,7 @@
     </button>
 
     <div class="menu-panel">
-        <h3>Настройки</h3>
+        <h3 style="margin-left: 40px;">Настройки</h3>
         <div class="setting-group">
             <label>Тип фантазии:</label>
             <select id="fantasyType">
@@ -358,11 +354,11 @@
     <button class="fullscreen-btn" onclick="toggleFullScreen()">
         <span class="material-icons">fullscreen</span>
     </button>
+
     <div class="controls">
         <button onclick="goToGame()">К игре</button>
         <button onclick="resetTraining()">Сброс</button>
     </div>
-
     <div class="table">
         <div class="row top" id="top-row"></div>
         <div class="row middle" id="middle-row"></div>
@@ -486,12 +482,14 @@
             card.addEventListener('dragstart', (e) => {
                 e.dataTransfer.setData('text/plain', '');
                 card.style.opacity = '0.5';
+                document.body.classList.add('dragging');
             });
 
             card.addEventListener('dragend', (e) => {
                 card.style.opacity = '1';
+                document.body.classList.remove('dragging');
                 if (e.dataTransfer.dropEffect === 'none') {
-                    const cardKey = `${cardData.rank}${cardData.suit}`;
+                    const cardKey = `${card.dataset.rank}${card.dataset.suit}`;
                     usedCards.delete(cardKey);
                     card.remove();
                 }
@@ -647,7 +645,6 @@
                 el.classList.remove('selected')
             );
         }
-
         function setupCombinationArea() {
             const combinationArea = document.querySelector('.combination-area');
             combinationArea.innerHTML = '';
@@ -658,6 +655,7 @@
                 combinationArea.appendChild(slot);
             }
         }
+
         document.addEventListener('DOMContentLoaded', () => {
             setupTable();
             setupCombinationArea();
